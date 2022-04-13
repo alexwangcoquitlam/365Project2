@@ -1,5 +1,4 @@
 // package src;
-
 // import java.awt.BorderLayout;
 // import java.awt.Color;
 // import java.awt.event.ActionEvent;
@@ -24,17 +23,17 @@
 
 // public class Project1Frame extends JFrame implements ActionListener {
 
-//     Combined
+//     // Combined
 //     private JPanel panel, controlPanel;
 //     private JButton fileButton;
 //     private JLabel fileLabel;
 
-//     Audio
+//     // Audio
 //     private JLabel totalSamplesLabel, samplingRateLabel;
 //     private WavePanel wavePanel;
 //     private JPanel infoPanel;
 
-//     Image
+//     // Image
 //     private JButton exitButton, nextButton;
 //     private JPanel imagesPanel;
 //     private ImagePanel imgPanel, ditheredPanel;
@@ -51,7 +50,7 @@
 //         this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 //         this.setLocationRelativeTo(null);
 
-//         Home Screen
+//         // Home Screen
 //         JLabel instructionLabel = new JLabel("Please select a .wav or .png file.");
 //         instructionLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 //         instructionLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
@@ -73,7 +72,7 @@
 //         panel.add(fileButton);
 //         panel.add(fileLabel);
 
-//         Audio
+//         // Audio
 //         wavePanel = new WavePanel();
 //         wavePanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
@@ -83,7 +82,7 @@
 //         infoPanel.add(totalSamplesLabel);
 //         infoPanel.add(samplingRateLabel);
 
-//         Images
+//         // Images
 //         imagesPanel = new JPanel();
 //         imagesPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
@@ -179,8 +178,7 @@
 //         }
 //     }
 
-//     Audio
-
+//     // Audio
 //     private void RemoveAudioComponents() {
 //         panel.remove(wavePanel);
 //         panel.remove(infoPanel);
@@ -240,8 +238,7 @@
 //         }
 //     }
 
-//     Images
-
+//     // Images
 //     private void RemoveImageComponents() {
 //         panel.remove(controlPanel);
 //         panel.remove(imagesPanel);
@@ -259,7 +256,7 @@
 
 //             imgPanel.repaint(originalColor, width, height);
 //             ditheredPanel.repaint(null, width, height);
-//             histogramPanel.repaint(histograms, width * 2 + 13, 150);
+//             histogramPanel.repaint(histograms, width*2+13, 150);
 
 //             panel.add(imagesPanel);
 //             panel.add(histogramPanel);

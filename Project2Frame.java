@@ -1,7 +1,9 @@
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.image.BufferedImage;
 
+import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.swing.BorderFactory;
@@ -41,12 +43,15 @@ public class Project2Frame extends JFrame implements ActionListener {
 
     // Audio
     private JPanel audioPanel;
-    private JLabel ratioLabel;
+    private JLabel ratioLabel, beforeLabel, afterLabel;
+    private static double bitsAfterEncoding;
 
-    private static double bitsAfterEncoding = 0;
+    // Image
+    private JPanel imagePanel;
+    private ImagePanel originalPanel, compressedPanel;
 
     Project2Frame() {
-        this.setTitle("CMPT 365 Project 1");
+        this.setTitle("CMPT 365 Project 2");
         this.setResizable(false);
         this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         this.setLocationRelativeTo(null);
@@ -73,11 +78,32 @@ public class Project2Frame extends JFrame implements ActionListener {
         panel.add(fileButton);
         panel.add(fileLabel);
 
+        // Audio
         audioPanel = new JPanel();
         audioPanel.setBorder(BorderFactory.createLineBorder(Color.black));
+        audioPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        BoxLayout audioLayout = new BoxLayout(audioPanel, BoxLayout.Y_AXIS);
+        audioPanel.setLayout(audioLayout);
+        beforeLabel = new JLabel();
+        afterLabel = new JLabel();
         ratioLabel = new JLabel();
-        ratioLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        audioPanel.add(beforeLabel);
+        audioPanel.add(afterLabel);
         audioPanel.add(ratioLabel);
+
+        // Image
+        imagePanel = new JPanel();
+        imagePanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        originalPanel = new ImagePanel();
+        originalPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        originalPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 20));
+
+        compressedPanel = new ImagePanel();
+        compressedPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        imagePanel.add(originalPanel);
+        imagePanel.add(compressedPanel);
 
         this.add(scrollPane, BorderLayout.CENTER);
         this.pack();
@@ -104,10 +130,16 @@ public class Project2Frame extends JFrame implements ActionListener {
                     if (extension.equals(".png")) {
                         fileLabel.setText(fileName);
 
+                        RemoveAudioComponents();
+
+                        InitializeImagePanel(file);
+
                         this.pack();
                         this.setLocationRelativeTo(null);
                     } else if (extension.equals(".wav")) {
                         fileLabel.setText(fileName);
+
+                        RemoveImageComponents();
 
                         InitializeAudioPanel(file);
 
@@ -133,7 +165,7 @@ public class Project2Frame extends JFrame implements ActionListener {
     }
 
     private void RemoveImageComponents() {
-
+        panel.remove(imagePanel);
     }
 
     private void InitializeAudioPanel(File file) {
@@ -150,10 +182,13 @@ public class Project2Frame extends JFrame implements ActionListener {
                 finalAudio[i] = (int)data[i] & 0xFF;
             }
 
+            bitsAfterEncoding = 0;
             CreateHuffman(finalAudio);
 
             double compressionRatio = Math.round((bitsBeforeEncoding/bitsAfterEncoding)*100.0) / 100.0;
-            ratioLabel.setText("Compression Ratio: " + compressionRatio);
+            beforeLabel.setText(String.format("%-25s%s", "Bits Before Encoding: ", bitsBeforeEncoding));
+            afterLabel.setText(String.format("%-25s%s", "Bits After Encoding: ", bitsAfterEncoding));
+            ratioLabel.setText(String.format("%-25s%s", "Compression Ratio: ", compressionRatio));
             panel.add(audioPanel);
         } catch (Exception ex) {
             fileLabel.setText("Error reading .wav");
@@ -221,5 +256,248 @@ public class Project2Frame extends JFrame implements ActionListener {
         }
         getBits(root.left, s + "0");
         getBits(root.right, s + "1");
+    }
+
+    private void InitializeImagePanel(File file){
+        try{
+            BufferedImage img = ImageIO.read(file);
+            int[][] rgbArray = GetRGBArray(img);
+            Color[][] colourArray = MakeColorArray(rgbArray);
+            int width = img.getWidth(), height = img.getHeight();
+
+            long bitsBeforeEncoding = 24*width*height;
+
+            // int[][] input = {{20, 20, 20, 20, 20, 20, 20, 20},
+            //                  {20, 20, 20, 20, 20, 20, 20, 20},
+            //                  {80, 80, 80, 80, 80, 80, 80, 80},
+            //                  {80, 80, 80, 80, 80, 80, 80, 80},
+            //                  {140, 140, 140, 140, 140, 140, 140, 140},
+            //                  {140, 140, 140, 140, 140, 140, 140, 140},
+            //                  {200, 200, 200, 200, 200, 200, 200, 200},
+            //                  {200, 200, 200, 200, 200, 200, 200, 200}};
+
+            // int[][] input = {{3,4,5,6},
+            //                  {4,5,6,7},
+            //                  {5,6,7,8}};
+
+            int[][] input = {{ 20, 20, 10, 5, 2, 1, 0, 0 },
+                    { 20, 20, 10, 5, 2, 1, 0, 0 },
+                    { 40, 40, 40, 20, 10, 5, 2, 1 },
+                    { 20, 20, 20, 20, 10, 5, 2, 1 },
+                    { 17, 17, 17, 17, 17, 8, 4, 2 },
+                    { 8, 8, 8, 8, 8, 8, 4, 2 },
+                    { 6, 6, 6, 6, 6, 6, 6, 3 },
+                    { 3, 3, 3, 3, 3, 3, 3, 3 }};
+            
+            CalculateDCT(input);
+
+            originalPanel.repaint(colourArray, width, height);
+            compressedPanel.repaint(null, width, height);
+            panel.add(imagePanel);
+        } catch (Exception ex){
+            ex.printStackTrace();
+            fileLabel.setText("Error reading .png");
+            fileLabel.setForeground(Color.RED);
+            Timer timer = new Timer(2000, event -> {
+                fileLabel.setText("No File Selected");
+                fileLabel.setForeground(Color.BLACK);
+            });
+            timer.setRepeats(false);
+            timer.start();
+        }
+    }
+
+    private int[][] GetRGBArray(BufferedImage image){
+        int w = image.getWidth(), h = image.getHeight();
+        int[][] output = new int[w][h];
+
+        for (int x = 0; x < w; x++) {
+            for (int y = 0; y < h; y++) {
+                output[x][y] = image.getRGB(x, y);
+            }
+        }
+
+        return output;
+    }
+
+    private Color[][] MakeColorArray(int[][] input) {
+        int w = input.length, h = input[0].length;
+        Color[][] output = new Color[w][h];
+
+        for (int x = 0; x < w; x++) {
+            for (int y = 0; y < h; y++) {
+                int R = (input[x][y] >> 16) & 0xFF;
+                int G = (input[x][y] >> 8) & 0xFF;
+                int B = (input[x][y]) & 0xFF;
+                output[x][y] = new Color(R, G, B);
+            }
+        }
+
+        return output;
+    }
+
+    private int[][] CalculateDCT(int[][] input){
+        int M = input.length;
+        int N = input[0].length;
+        int[][] result = CalculateRowTransform(input, N, M);
+        result = CalculateColumnTransform(result, N, M);
+        PrintMatrix(result);
+        result = Quantization(result);
+        PrintMatrix(result);
+        result = ReverseQuantization(result);
+        PrintMatrix(result);
+        result = InverseDCT(result);
+        PrintMatrix(result);
+
+        return result;
+    }
+
+    private static int[][] CalculateRowTransform(int[][] input, int N, int M) {
+        int[][] result = new int[M][N];
+        double coefficient = Math.sqrt(2.0/M);
+        for (int u = 0; u < M; u++) {
+            double temp = 0;
+            double Cu;
+            if (u == 0)
+                Cu = (Math.sqrt(2)) / 2;
+            else
+                Cu = 1;
+            for (int j = 0; j < N; j++) {
+                for (int i = 0; i < M; i++) {
+                    temp += Math.cos(((2 * i + 1) * u * Math.PI) / (2*M)) * input[i][j];
+                }
+                temp *= Cu*coefficient;
+
+                result[u][j] = (int)Math.round(temp);
+
+                temp = 0;
+            }
+        }
+        return result;
+    }
+
+    private static int[][] CalculateColumnTransform(int[][] input, int N, int M) {
+        int[][] result = new int[M][N];
+        double coefficient = Math.sqrt(2.0/N);
+        for (int v = 0; v < N; v++) {
+            double temp = 0;
+            double Cv;
+            if (v == 0)
+                Cv = (Math.sqrt(2)) / 2;
+            else
+                Cv = 1;
+            for (int u = 0; u < M; u++) {
+                for (int j = 0; j < N; j++) {
+                    temp += Math.cos(((2 * j + 1) * v * Math.PI) / (2*N)) * input[u][j];
+                }
+                temp *= Cv*coefficient;
+
+                result[u][v] = (int)Math.round(temp);
+
+                temp = 0;
+            }
+        }
+
+        return result;
+    }
+
+    private static int[][] Quantization(int[][] input){
+        int[][] quantizationTable = {{1,1,2,4,8,16,32,64},
+                                     {1,1,2,4,8,16,32,64},
+                                     {2,2,2,4,8,16,32,64},
+                                     {4,4,4,4,8,16,32,64},
+                                     {8,8,8,8,8,16,32,64},
+                                     {16,16,16,16,16,16,32,64},
+                                     {32,32,32,32,32,32,32,64},
+                                     {64,64,64,64,64,64,64,64}};
+        int[][] result = new int[input.length][input[0].length];
+        for(int i = 0; i < input.length; i++){
+            for(int j = 0; j < input[0].length; j++){
+                result[i][j] = (int)Math.round(input[i][j]/quantizationTable[i][j]);
+            }
+        }
+
+        return result;
+    }
+
+    private static int[][] ReverseQuantization(int[][] input){
+        int[][] quantizationTable = {{1,1,2,4,8,16,32,64},
+                                     {1,1,2,4,8,16,32,64},
+                                     {2,2,2,4,8,16,32,64},
+                                     {4,4,4,4,8,16,32,64},
+                                     {8,8,8,8,8,16,32,64},
+                                     {16,16,16,16,16,16,32,64},
+                                     {32,32,32,32,32,32,32,64},
+                                     {64,64,64,64,64,64,64,64}};
+        int[][] result = new int[input.length][input[0].length];
+        for(int i = 0; i < input.length; i++){
+            for(int j = 0; j < input[0].length; j++){
+                result[i][j] = (int)Math.round(input[i][j]*quantizationTable[i][j]);
+            }
+        }
+
+        return result;
+    }
+
+    private static int[][] InverseDCT(int[][] input){
+        int[][] result = new int[input.length][input[0].length];
+        for (int u = 0; u <= input.length-1; u++) {
+            for (int v = 0; v <= input[0].length-1; v++) {
+                double temp = 0;
+                double Cu;
+                double Cv;
+                if (u == 0)
+                    Cu = (Math.sqrt(2)) / 2;
+                else
+                    Cu = 1;
+                if (v == 0)
+                    Cv = (Math.sqrt(2)) / 2;
+                else
+                    Cv = 1;
+
+                for (int i = 0; i <= input.length-1; i++) {
+                    for (int j = 0; j <= input[0].length-1; j++) {
+                        temp += ((Cu * Cv) / 4) * Math.cos(((2 * i + 1) * u * Math.PI) / 16) * Math.cos(((2 * j + 1) * v * Math.PI) / 16)
+                                * input[i][j];
+                    }
+                }
+                int res = (int) Math.round(temp);
+
+                result[u][v] = res;
+            }
+        }
+        return result;
+    }
+
+    private static void PrintMatrix(int[][] input) {
+        int max = 0;
+        boolean isNegative = false;
+
+        for (int i = 0; i < input.length; i++) {
+            for (int j = 0; j < input[0].length; j++) {
+                if (Math.abs(input[i][j]) > max) {
+                    max = Math.abs(input[i][j]);
+                }
+                if (input[i][j] < 0) {
+                    isNegative = true;
+                }
+            }
+        }
+        String temp = Integer.toString(max);
+        int maxWidth = temp.length();
+
+        if (isNegative)
+            maxWidth++;
+
+        String format = "%" + maxWidth + "d";
+        for (int i = 0; i < input.length; i++) {
+            System.out.print("|");
+            for (int j = 0; j < input[0].length; j++) {
+                System.out.printf(format + " ", input[i][j]);
+            }
+            System.out.println("|");
+        }
+        System.out.println("-------------------------------------------");
+
     }
 }
