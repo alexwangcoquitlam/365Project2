@@ -2,16 +2,21 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.image.BufferedImage;
-
+import java.nio.file.Files;
 import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import java.io.File;
+import java.io.FileWriter;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.PriorityQueue;
 import java.util.Comparator;
+import java.util.HashMap;
+
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -36,7 +41,7 @@ class ImplementComparator implements Comparator<HuffmanNode> {
     }
 }
 
-class RGB{
+class RGB {
     int[][] R;
     int[][] G;
     int[][] B;
@@ -49,8 +54,11 @@ public class Project2Frame extends JFrame implements ActionListener {
 
     // Audio
     private JPanel audioPanel;
-    private JLabel ratioLabel, beforeLabel, afterLabel;
+    private WavePanel wavePanel;
+    private JLabel ratioLabel;
     private static double bitsAfterEncoding;
+    private static HashMap<Integer, String> huffmanDictionary = new HashMap<Integer, String>();
+    private static HashMap<String, Integer> reverseDictionary = new HashMap<String, Integer>();
 
     // Image
     private RGB rgbArray;
@@ -87,16 +95,15 @@ public class Project2Frame extends JFrame implements ActionListener {
 
         // Audio
         audioPanel = new JPanel();
-        audioPanel.setBorder(BorderFactory.createLineBorder(Color.black));
         audioPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
         BoxLayout audioLayout = new BoxLayout(audioPanel, BoxLayout.Y_AXIS);
         audioPanel.setLayout(audioLayout);
-        beforeLabel = new JLabel();
-        afterLabel = new JLabel();
         ratioLabel = new JLabel();
-        audioPanel.add(beforeLabel);
-        audioPanel.add(afterLabel);
+        ratioLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        wavePanel = new WavePanel();
+        wavePanel.setAlignmentX(Component.CENTER_ALIGNMENT);
         audioPanel.add(ratioLabel);
+        audioPanel.add(wavePanel);
 
         // Image
         imagePanel = new JPanel();
@@ -144,11 +151,11 @@ public class Project2Frame extends JFrame implements ActionListener {
                         this.pack();
                         this.setLocationRelativeTo(null);
                     } else if (extension.equals(".wav")) {
-                        fileLabel.setText(fileName);
-
                         RemoveImageComponents();
 
                         InitializeAudioPanel(file);
+
+                        fileLabel.setText(fileName);
 
                         this.pack();
                         this.setLocationRelativeTo(null);
@@ -183,22 +190,54 @@ public class Project2Frame extends JFrame implements ActionListener {
 
             double bitsBeforeEncoding = data.length * 8;
 
-            int[] finalAudio = new int[data.length];
+            int[] byteData = new int[data.length];
 
             for (int i = 0; i < data.length; i++) {
-                finalAudio[i] = (int) data[i] & 0xFF;
+                byteData[i] = (int) data[i] + 128;
             }
 
             bitsAfterEncoding = 0;
-            CreateHuffman(finalAudio);
+            huffmanDictionary.clear();
+            EncodeHuffman(byteData);
+            int[] decodedAudio = DecodeHuffman();
+
+            int channels = fileStream.getFormat().getChannels();
+            int frameLength = (int) fileStream.getFrameLength();
+            int bitsPerSample = fileStream.getFormat().getSampleSizeInBits();
+
+            
+            int[][] finalAudio = new int[channels][frameLength];
+
+            if (bitsPerSample == 16) {
+                int index = 0;
+                for (int d = 0; d < data.length;) {
+                    for (int c = 0; c < channels; c++) {
+                        int low = decodedAudio[d] - 128;
+                        d++;
+                        int high = decodedAudio[d] - 128;
+                        d++;
+                        finalAudio[c][index] = (high << 8) + (low & 0x00ff);
+                    }
+                    index++;
+                }
+            } else {
+                int index = 0;
+                for (int d = 0; d < data.length;) {
+                    for (int c = 0; c < channels; c++) {
+                        finalAudio[c][index] = decodedAudio[d] - 128;
+                        d++;
+                    }
+                    index++;
+                }
+            }
+
+            wavePanel.repaint(finalAudio, channels);
 
             double compressionRatio = Math.round((bitsBeforeEncoding / bitsAfterEncoding) * 100.0) / 100.0;
-            beforeLabel.setText(String.format("%-25s%s", "Bits Before Encoding: ", bitsBeforeEncoding));
-            afterLabel.setText(String.format("%-25s%s", "Bits After Encoding: ", bitsAfterEncoding));
-            ratioLabel.setText(String.format("%-25s%s", "Compression Ratio: ", compressionRatio));
+            ratioLabel.setText("Compression Ratio: " + compressionRatio);
             panel.add(audioPanel);
         } catch (Exception ex) {
-            fileLabel.setText("Error reading .wav");
+            fileLabel.setText("Error encoding file.");
             fileLabel.setForeground(Color.RED);
             Timer timer = new Timer(2000, event -> {
                 fileLabel.setText("No File Selected");
@@ -210,7 +249,8 @@ public class Project2Frame extends JFrame implements ActionListener {
         }
     }
 
-    private static void CreateHuffman(int[] input) {
+    private void EncodeHuffman(int[] input) {
+        System.out.println("Performing Huffman encoding...");
         int n = 256;
         int[] frequencies = new int[256];
 
@@ -253,12 +293,70 @@ public class Project2Frame extends JFrame implements ActionListener {
             q.add(f);
         }
         getBits(root, "");
+
+        System.out.println("Finishing Huffman encoding...");
+        System.out.println("Creating Huffman code, this can take a while...");
+        String huffmanCode = "";
+        for (int i = 0; i < input.length; i++) {
+            String code = huffmanDictionary.get(input[i]);
+            huffmanCode += code;
+            huffmanCode += " ";
+        }
+        try {
+            System.out.println("Writing to file...");
+            File encodedHuffman = new File("encodedHuffman.txt");
+            if (encodedHuffman.createNewFile()) {
+                System.out.println("File created: " + encodedHuffman.getName());
+            } else {
+                encodedHuffman.delete();
+                encodedHuffman.createNewFile();
+            }
+            FileWriter writer = new FileWriter(encodedHuffman.getName());
+            writer.write(huffmanCode);
+            writer.close();
+        } catch (Exception ex) {
+            fileLabel.setText("Error reading .wav");
+            fileLabel.setForeground(Color.RED);
+            Timer timer = new Timer(2000, event -> {
+                fileLabel.setText("No File Selected");
+                fileLabel.setForeground(Color.BLACK);
+            });
+            timer.setRepeats(false);
+            timer.start();
+            ex.printStackTrace();
+        }
+    }
+
+    private int[] DecodeHuffman() {
+        System.out.println("Performing decoding...");
+        try {
+            Path newPath = Paths.get("encodedHuffman.txt");
+            String fileString = Files.readString(newPath);
+            String[] fileArr = fileString.split("[ \n]");
+            int[] result = new int[fileArr.length];
+            for(int i = 0; i < fileArr.length; i++){
+                result[i] = reverseDictionary.get(fileArr[i]);
+            }
+            return result;
+        } catch (Exception ex) {
+            fileLabel.setText("Error decoding file.");
+            fileLabel.setForeground(Color.RED);
+            Timer timer = new Timer(2000, event -> {
+                fileLabel.setText("No File Selected");
+                fileLabel.setForeground(Color.BLACK);
+            });
+            timer.setRepeats(false);
+            timer.start();
+            ex.printStackTrace();
+        }
+        return new int[0];
     }
 
     private static void getBits(HuffmanNode root, String s) {
         if (root.left == null && root.right == null) {
             bitsAfterEncoding += (root.item) * String.valueOf(s).length();
-
+            huffmanDictionary.put(root.c, s);
+            reverseDictionary.put(s, root.c);
             return;
         }
         getBits(root.left, s + "0");
@@ -276,16 +374,16 @@ public class Project2Frame extends JFrame implements ActionListener {
 
             for (int i = 0; i < width;) {
                 for (int j = 0; j < height;) {
-                    //int[][] redMatrix = CalculateDCT(rgbArray.R, 0, 0);
-                    //int[][] greenMatrix = CalculateDCT(rgbArray.G);
-                    //int[][] blueMatrix = CalculateDCT(rgbArray.B);
-                    
+                    // int[][] redMatrix = CalculateDCT(rgbArray.R, 0, 0);
+                    // int[][] greenMatrix = CalculateDCT(rgbArray.G);
+                    // int[][] blueMatrix = CalculateDCT(rgbArray.B);
+
                     j += 8;
                 }
                 i += 8;
             }
 
-            //CalculateDCT();
+            // CalculateDCT();
 
             originalPanel.repaint(colourArray, width, height);
             compressedPanel.repaint(null, width, height);
@@ -338,20 +436,20 @@ public class Project2Frame extends JFrame implements ActionListener {
         return output;
     }
 
-    private int[][] CalculateDCT(int[][] input, int left, int top) {
+    private int[][] CalculateDCT(int[][] input) {
         int M = input.length;
         int N = input[0].length;
-        double[][] temp = CalculateRowTransform(input, N, M, left, top);
-        temp = CalculateColumnTransform(temp, N, M, left, top);
-        temp = Quantization(temp, left, top);
-        temp = ReverseQuantization(temp, left, top);
-        int[][] result = InverseDCT(temp, left, top);
+        double[][] temp = CalculateRowTransform(input, N, M);
+        temp = CalculateColumnTransform(temp, N, M);
+        temp = Quantization(temp);
+        temp = ReverseQuantization(temp);
+        int[][] result = InverseDCT(temp);
         PrintMatrix(result);
 
         return result;
     }
 
-    private static double[][] CalculateRowTransform(int[][] input, int N, int M, int left, int top) {
+    private static double[][] CalculateRowTransform(int[][] input, int N, int M) {
         double[][] result = new double[M][N];
         double coefficient = Math.sqrt(2.0 / M);
         for (int u = 0; u < M; u++) {
@@ -375,7 +473,7 @@ public class Project2Frame extends JFrame implements ActionListener {
         return result;
     }
 
-    private static double[][] CalculateColumnTransform(double[][] input, int N, int M, int left, int top) {
+    private static double[][] CalculateColumnTransform(double[][] input, int N, int M) {
         double[][] result = new double[M][N];
         double coefficient = Math.sqrt(2.0 / N);
         for (int v = 0; v < N; v++) {
@@ -400,7 +498,7 @@ public class Project2Frame extends JFrame implements ActionListener {
         return result;
     }
 
-    private static double[][] Quantization(double[][] input, int left, int top) {
+    private static double[][] Quantization(double[][] input) {
         int[][] quantizationTable = { { 1, 1, 2, 4, 8, 16, 32, 64 },
                 { 1, 1, 2, 4, 8, 16, 32, 64 },
                 { 2, 2, 2, 4, 8, 16, 32, 64 },
@@ -419,7 +517,7 @@ public class Project2Frame extends JFrame implements ActionListener {
         return result;
     }
 
-    private static double[][] ReverseQuantization(double[][] input, int left, int top) {
+    private static double[][] ReverseQuantization(double[][] input) {
         int[][] quantizationTable = { { 1, 1, 2, 4, 8, 16, 32, 64 },
                 { 1, 1, 2, 4, 8, 16, 32, 64 },
                 { 2, 2, 2, 4, 8, 16, 32, 64 },
@@ -438,7 +536,7 @@ public class Project2Frame extends JFrame implements ActionListener {
         return result;
     }
 
-    private static int[][] InverseDCT(double[][] input, int left, int top) {
+    private static int[][] InverseDCT(double[][] input) {
         int[][] result = new int[input.length][input[0].length];
         for (int u = 0; u <= input.length - 1; u++) {
             for (int v = 0; v <= input[0].length - 1; v++) {
