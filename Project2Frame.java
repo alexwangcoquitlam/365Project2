@@ -36,6 +36,12 @@ class ImplementComparator implements Comparator<HuffmanNode> {
     }
 }
 
+class RGB{
+    int[][] R;
+    int[][] G;
+    int[][] B;
+}
+
 public class Project2Frame extends JFrame implements ActionListener {
     private JPanel panel;
     private JButton fileButton;
@@ -47,6 +53,7 @@ public class Project2Frame extends JFrame implements ActionListener {
     private static double bitsAfterEncoding;
 
     // Image
+    private RGB rgbArray;
     private JPanel imagePanel;
     private ImagePanel originalPanel, compressedPanel;
 
@@ -174,18 +181,18 @@ public class Project2Frame extends JFrame implements ActionListener {
             byte[] data = new byte[fileStream.available()];
             fileStream.read(data);
 
-            double bitsBeforeEncoding = data.length*8;
+            double bitsBeforeEncoding = data.length * 8;
 
             int[] finalAudio = new int[data.length];
 
-            for(int i = 0; i < data.length; i++){
-                finalAudio[i] = (int)data[i] & 0xFF;
+            for (int i = 0; i < data.length; i++) {
+                finalAudio[i] = (int) data[i] & 0xFF;
             }
 
             bitsAfterEncoding = 0;
             CreateHuffman(finalAudio);
 
-            double compressionRatio = Math.round((bitsBeforeEncoding/bitsAfterEncoding)*100.0) / 100.0;
+            double compressionRatio = Math.round((bitsBeforeEncoding / bitsAfterEncoding) * 100.0) / 100.0;
             beforeLabel.setText(String.format("%-25s%s", "Bits Before Encoding: ", bitsBeforeEncoding));
             afterLabel.setText(String.format("%-25s%s", "Bits After Encoding: ", bitsAfterEncoding));
             ratioLabel.setText(String.format("%-25s%s", "Compression Ratio: ", compressionRatio));
@@ -250,7 +257,7 @@ public class Project2Frame extends JFrame implements ActionListener {
 
     private static void getBits(HuffmanNode root, String s) {
         if (root.left == null && root.right == null) {
-            bitsAfterEncoding += (root.item)*String.valueOf(s).length();
+            bitsAfterEncoding += (root.item) * String.valueOf(s).length();
 
             return;
         }
@@ -258,43 +265,32 @@ public class Project2Frame extends JFrame implements ActionListener {
         getBits(root.right, s + "1");
     }
 
-    private void InitializeImagePanel(File file){
-        try{
+    private void InitializeImagePanel(File file) {
+        try {
             BufferedImage img = ImageIO.read(file);
-            int[][] rgbArray = GetRGBArray(img);
+            rgbArray = GetRGBArray(img);
             Color[][] colourArray = MakeColorArray(rgbArray);
             int width = img.getWidth(), height = img.getHeight();
 
-            long bitsBeforeEncoding = 24*width*height;
+            long bitsBeforeEncoding = 24 * width * height;
 
-            // int[][] input = {{20, 20, 20, 20, 20, 20, 20, 20},
-            //                  {20, 20, 20, 20, 20, 20, 20, 20},
-            //                  {80, 80, 80, 80, 80, 80, 80, 80},
-            //                  {80, 80, 80, 80, 80, 80, 80, 80},
-            //                  {140, 140, 140, 140, 140, 140, 140, 140},
-            //                  {140, 140, 140, 140, 140, 140, 140, 140},
-            //                  {200, 200, 200, 200, 200, 200, 200, 200},
-            //                  {200, 200, 200, 200, 200, 200, 200, 200}};
+            for (int i = 0; i < width;) {
+                for (int j = 0; j < height;) {
+                    //int[][] redMatrix = CalculateDCT(rgbArray.R, 0, 0);
+                    //int[][] greenMatrix = CalculateDCT(rgbArray.G);
+                    //int[][] blueMatrix = CalculateDCT(rgbArray.B);
+                    
+                    j += 8;
+                }
+                i += 8;
+            }
 
-            // int[][] input = {{3,4,5,6},
-            //                  {4,5,6,7},
-            //                  {5,6,7,8}};
-
-            int[][] input = {{ 20, 20, 10, 5, 2, 1, 0, 0 },
-                    { 20, 20, 10, 5, 2, 1, 0, 0 },
-                    { 40, 40, 40, 20, 10, 5, 2, 1 },
-                    { 20, 20, 20, 20, 10, 5, 2, 1 },
-                    { 17, 17, 17, 17, 17, 8, 4, 2 },
-                    { 8, 8, 8, 8, 8, 8, 4, 2 },
-                    { 6, 6, 6, 6, 6, 6, 6, 3 },
-                    { 3, 3, 3, 3, 3, 3, 3, 3 }};
-            
-            CalculateDCT(input);
+            //CalculateDCT();
 
             originalPanel.repaint(colourArray, width, height);
             compressedPanel.repaint(null, width, height);
             panel.add(imagePanel);
-        } catch (Exception ex){
+        } catch (Exception ex) {
             ex.printStackTrace();
             fileLabel.setText("Error reading .png");
             fileLabel.setForeground(Color.RED);
@@ -307,28 +303,34 @@ public class Project2Frame extends JFrame implements ActionListener {
         }
     }
 
-    private int[][] GetRGBArray(BufferedImage image){
+    private RGB GetRGBArray(BufferedImage image) {
         int w = image.getWidth(), h = image.getHeight();
-        int[][] output = new int[w][h];
+        RGB result = new RGB();
+        result.R = new int[w][h];
+        result.G = new int[w][h];
+        result.B = new int[w][h];
 
         for (int x = 0; x < w; x++) {
             for (int y = 0; y < h; y++) {
-                output[x][y] = image.getRGB(x, y);
+                int byteVals = image.getRGB(x, y);
+                result.R[x][y] = (byteVals >> 16) & 0xFF;
+                result.G[x][y] = (byteVals >> 8) & 0xFF;
+                result.B[x][y] = (byteVals) & 0xFF;
             }
         }
 
-        return output;
+        return result;
     }
 
-    private Color[][] MakeColorArray(int[][] input) {
-        int w = input.length, h = input[0].length;
+    private Color[][] MakeColorArray(RGB input) {
+        int w = input.R.length, h = input.R[0].length;
         Color[][] output = new Color[w][h];
 
         for (int x = 0; x < w; x++) {
             for (int y = 0; y < h; y++) {
-                int R = (input[x][y] >> 16) & 0xFF;
-                int G = (input[x][y] >> 8) & 0xFF;
-                int B = (input[x][y]) & 0xFF;
+                int R = input.R[x][y];
+                int G = input.G[x][y];
+                int B = input.B[x][y];
                 output[x][y] = new Color(R, G, B);
             }
         }
@@ -336,25 +338,22 @@ public class Project2Frame extends JFrame implements ActionListener {
         return output;
     }
 
-    private int[][] CalculateDCT(int[][] input){
+    private int[][] CalculateDCT(int[][] input, int left, int top) {
         int M = input.length;
         int N = input[0].length;
-        int[][] result = CalculateRowTransform(input, N, M);
-        result = CalculateColumnTransform(result, N, M);
-        PrintMatrix(result);
-        result = Quantization(result);
-        PrintMatrix(result);
-        result = ReverseQuantization(result);
-        PrintMatrix(result);
-        result = InverseDCT(result);
+        double[][] temp = CalculateRowTransform(input, N, M, left, top);
+        temp = CalculateColumnTransform(temp, N, M, left, top);
+        temp = Quantization(temp, left, top);
+        temp = ReverseQuantization(temp, left, top);
+        int[][] result = InverseDCT(temp, left, top);
         PrintMatrix(result);
 
         return result;
     }
 
-    private static int[][] CalculateRowTransform(int[][] input, int N, int M) {
-        int[][] result = new int[M][N];
-        double coefficient = Math.sqrt(2.0/M);
+    private static double[][] CalculateRowTransform(int[][] input, int N, int M, int left, int top) {
+        double[][] result = new double[M][N];
+        double coefficient = Math.sqrt(2.0 / M);
         for (int u = 0; u < M; u++) {
             double temp = 0;
             double Cu;
@@ -364,11 +363,11 @@ public class Project2Frame extends JFrame implements ActionListener {
                 Cu = 1;
             for (int j = 0; j < N; j++) {
                 for (int i = 0; i < M; i++) {
-                    temp += Math.cos(((2 * i + 1) * u * Math.PI) / (2*M)) * input[i][j];
+                    temp += Math.cos(((2 * i + 1) * u * Math.PI) / (2 * M)) * input[i][j];
                 }
-                temp *= Cu*coefficient;
+                temp *= Cu * coefficient;
 
-                result[u][j] = (int)Math.round(temp);
+                result[u][j] = temp;
 
                 temp = 0;
             }
@@ -376,9 +375,9 @@ public class Project2Frame extends JFrame implements ActionListener {
         return result;
     }
 
-    private static int[][] CalculateColumnTransform(int[][] input, int N, int M) {
-        int[][] result = new int[M][N];
-        double coefficient = Math.sqrt(2.0/N);
+    private static double[][] CalculateColumnTransform(double[][] input, int N, int M, int left, int top) {
+        double[][] result = new double[M][N];
+        double coefficient = Math.sqrt(2.0 / N);
         for (int v = 0; v < N; v++) {
             double temp = 0;
             double Cv;
@@ -388,11 +387,11 @@ public class Project2Frame extends JFrame implements ActionListener {
                 Cv = 1;
             for (int u = 0; u < M; u++) {
                 for (int j = 0; j < N; j++) {
-                    temp += Math.cos(((2 * j + 1) * v * Math.PI) / (2*N)) * input[u][j];
+                    temp += Math.cos(((2 * j + 1) * v * Math.PI) / (2 * N)) * input[u][j];
                 }
-                temp *= Cv*coefficient;
+                temp *= Cv * coefficient;
 
-                result[u][v] = (int)Math.round(temp);
+                result[u][v] = temp;
 
                 temp = 0;
             }
@@ -401,48 +400,48 @@ public class Project2Frame extends JFrame implements ActionListener {
         return result;
     }
 
-    private static int[][] Quantization(int[][] input){
-        int[][] quantizationTable = {{1,1,2,4,8,16,32,64},
-                                     {1,1,2,4,8,16,32,64},
-                                     {2,2,2,4,8,16,32,64},
-                                     {4,4,4,4,8,16,32,64},
-                                     {8,8,8,8,8,16,32,64},
-                                     {16,16,16,16,16,16,32,64},
-                                     {32,32,32,32,32,32,32,64},
-                                     {64,64,64,64,64,64,64,64}};
-        int[][] result = new int[input.length][input[0].length];
-        for(int i = 0; i < input.length; i++){
-            for(int j = 0; j < input[0].length; j++){
-                result[i][j] = (int)Math.round(input[i][j]/quantizationTable[i][j]);
+    private static double[][] Quantization(double[][] input, int left, int top) {
+        int[][] quantizationTable = { { 1, 1, 2, 4, 8, 16, 32, 64 },
+                { 1, 1, 2, 4, 8, 16, 32, 64 },
+                { 2, 2, 2, 4, 8, 16, 32, 64 },
+                { 4, 4, 4, 4, 8, 16, 32, 64 },
+                { 8, 8, 8, 8, 8, 16, 32, 64 },
+                { 16, 16, 16, 16, 16, 16, 32, 64 },
+                { 32, 32, 32, 32, 32, 32, 32, 64 },
+                { 64, 64, 64, 64, 64, 64, 64, 64 } };
+        double[][] result = new double[input.length][input[0].length];
+        for (int i = 0; i < input.length; i++) {
+            for (int j = 0; j < input[0].length; j++) {
+                result[i][j] = input[i][j] / quantizationTable[i][j];
             }
         }
 
         return result;
     }
 
-    private static int[][] ReverseQuantization(int[][] input){
-        int[][] quantizationTable = {{1,1,2,4,8,16,32,64},
-                                     {1,1,2,4,8,16,32,64},
-                                     {2,2,2,4,8,16,32,64},
-                                     {4,4,4,4,8,16,32,64},
-                                     {8,8,8,8,8,16,32,64},
-                                     {16,16,16,16,16,16,32,64},
-                                     {32,32,32,32,32,32,32,64},
-                                     {64,64,64,64,64,64,64,64}};
-        int[][] result = new int[input.length][input[0].length];
-        for(int i = 0; i < input.length; i++){
-            for(int j = 0; j < input[0].length; j++){
-                result[i][j] = (int)Math.round(input[i][j]*quantizationTable[i][j]);
+    private static double[][] ReverseQuantization(double[][] input, int left, int top) {
+        int[][] quantizationTable = { { 1, 1, 2, 4, 8, 16, 32, 64 },
+                { 1, 1, 2, 4, 8, 16, 32, 64 },
+                { 2, 2, 2, 4, 8, 16, 32, 64 },
+                { 4, 4, 4, 4, 8, 16, 32, 64 },
+                { 8, 8, 8, 8, 8, 16, 32, 64 },
+                { 16, 16, 16, 16, 16, 16, 32, 64 },
+                { 32, 32, 32, 32, 32, 32, 32, 64 },
+                { 64, 64, 64, 64, 64, 64, 64, 64 } };
+        double[][] result = new double[input.length][input[0].length];
+        for (int i = 0; i < input.length; i++) {
+            for (int j = 0; j < input[0].length; j++) {
+                result[i][j] = input[i][j] * quantizationTable[i][j];
             }
         }
 
         return result;
     }
 
-    private static int[][] InverseDCT(int[][] input){
+    private static int[][] InverseDCT(double[][] input, int left, int top) {
         int[][] result = new int[input.length][input[0].length];
-        for (int u = 0; u <= input.length-1; u++) {
-            for (int v = 0; v <= input[0].length-1; v++) {
+        for (int u = 0; u <= input.length - 1; u++) {
+            for (int v = 0; v <= input[0].length - 1; v++) {
                 double temp = 0;
                 double Cu;
                 double Cv;
@@ -455,9 +454,10 @@ public class Project2Frame extends JFrame implements ActionListener {
                 else
                     Cv = 1;
 
-                for (int i = 0; i <= input.length-1; i++) {
-                    for (int j = 0; j <= input[0].length-1; j++) {
-                        temp += ((Cu * Cv) / 4) * Math.cos(((2 * i + 1) * u * Math.PI) / 16) * Math.cos(((2 * j + 1) * v * Math.PI) / 16)
+                for (int i = 0; i <= input.length - 1; i++) {
+                    for (int j = 0; j <= input[0].length - 1; j++) {
+                        temp += ((Cu * Cv) / 4) * Math.cos(((2 * i + 1) * u * Math.PI) / 16)
+                                * Math.cos(((2 * j + 1) * v * Math.PI) / 16)
                                 * input[i][j];
                     }
                 }
@@ -497,7 +497,6 @@ public class Project2Frame extends JFrame implements ActionListener {
             }
             System.out.println("|");
         }
-        System.out.println("-------------------------------------------");
 
     }
 }
