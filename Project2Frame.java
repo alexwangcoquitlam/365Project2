@@ -28,6 +28,12 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+class RGB {
+    int[][] R;
+    int[][] G;
+    int[][] B;
+}
+
 class HuffmanNode {
     int item;
     int c;
@@ -39,12 +45,6 @@ class ImplementComparator implements Comparator<HuffmanNode> {
     public int compare(HuffmanNode x, HuffmanNode y) {
         return x.item - y.item;
     }
-}
-
-class RGB {
-    int[][] R;
-    int[][] G;
-    int[][] B;
 }
 
 public class Project2Frame extends JFrame implements ActionListener {
@@ -102,7 +102,6 @@ public class Project2Frame extends JFrame implements ActionListener {
         ratioLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         wavePanel = new WavePanel();
         wavePanel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        audioPanel.add(ratioLabel);
         audioPanel.add(wavePanel);
 
         // Image
@@ -175,10 +174,12 @@ public class Project2Frame extends JFrame implements ActionListener {
     }
 
     private void RemoveAudioComponents() {
+        panel.remove(ratioLabel);
         panel.remove(audioPanel);
     }
 
     private void RemoveImageComponents() {
+        panel.remove(ratioLabel);
         panel.remove(imagePanel);
     }
 
@@ -235,6 +236,7 @@ public class Project2Frame extends JFrame implements ActionListener {
 
             double compressionRatio = Math.round((bitsBeforeEncoding / bitsAfterEncoding) * 100.0) / 100.0;
             ratioLabel.setText("Compression Ratio: " + compressionRatio);
+            panel.add(ratioLabel);
             panel.add(audioPanel);
         } catch (Exception ex) {
             fileLabel.setText("Error encoding file.");
@@ -275,10 +277,8 @@ public class Project2Frame extends JFrame implements ActionListener {
         HuffmanNode root = null;
 
         while (q.size() > 1) {
-
             HuffmanNode x = q.peek();
             q.poll();
-
             HuffmanNode y = q.peek();
             q.poll();
 
@@ -368,32 +368,19 @@ public class Project2Frame extends JFrame implements ActionListener {
             int width = img.getWidth(), height = img.getHeight();
 
             long bitsBeforeEncoding = 24 * width * height;
-
-            // int[][] test = {
-            //     { 89, 78, 76, 75, 70, 82, 81, 82, 89, 78, 76, 75, 70, 82, 81, 82 },
-            //     { 122, 95, 86, 80, 80, 76, 74, 81, 122, 95, 86, 80, 80, 76, 74, 81 },
-            //     { 184, 153, 126, 106, 85, 76, 71, 75, 184, 153, 126, 106, 85, 76, 71, 75 },
-            //     { 221, 205, 180, 146, 97, 71, 68, 67, 221, 205, 180, 146, 97, 71, 68, 67},
-            //     { 225, 222, 217, 194, 144, 95, 78, 82, 225, 222, 217, 194, 144, 95, 78, 82 },
-            //     { 228, 225, 227, 220, 193, 146, 110, 108, 228, 225, 227, 220, 193, 146, 110, 108 },
-            //     { 223, 224, 225, 224, 220, 197, 156, 120, 223, 224, 225, 224, 220, 197, 156, 120 },
-            //     { 217, 219, 219, 224, 230, 220, 197, 151, 217, 219, 219, 224, 230, 220, 197, 151 },
-            //     { 89, 78, 76, 75, 70, 82, 81, 82, 89, 78, 76, 75, 70, 82, 81, 82 },
-            //     { 122, 95, 86, 80, 80, 76, 74, 81, 122, 95, 86, 80, 80, 76, 74, 81 },
-            //     { 184, 153, 126, 106, 85, 76, 71, 75, 184, 153, 126, 106, 85, 76, 71, 75 },
-            //     { 221, 205, 180, 146, 97, 71, 68, 67, 221, 205, 180, 146, 97, 71, 68, 67},
-            //     { 225, 222, 217, 194, 144, 95, 78, 82, 225, 222, 217, 194, 144, 95, 78, 82 },
-            //     { 228, 225, 227, 220, 193, 146, 110, 108, 228, 225, 227, 220, 193, 146, 110, 108 },
-            //     { 223, 224, 225, 224, 220, 197, 156, 120, 223, 224, 225, 224, 220, 197, 156, 120 },
-            //     { 217, 219, 219, 224, 230, 220, 197, 151, 217, 219, 219, 224, 230, 220, 197, 151 }};
+            bitsAfterEncoding = 0;
 
             rgbArray.R = DCTEncoding("red");
             rgbArray.G = DCTEncoding("green");
             rgbArray.B = DCTEncoding("blue");
             Color[][] compressedColour = MakeColorArray(rgbArray);
 
+            double compressionRatio = ((bitsBeforeEncoding/bitsAfterEncoding)*100.0)/100.0;
+            ratioLabel.setText("Compression Ratio: " + compressionRatio);
+
             originalPanel.repaint(originalColourArray, width, height);
             compressedPanel.repaint(compressedColour, width, height);
+            panel.add(ratioLabel);
             panel.add(imagePanel);
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -477,7 +464,7 @@ public class Project2Frame extends JFrame implements ActionListener {
         double[][] temp = CalculateRowTransform(input, N, M);
         temp = CalculateColumnTransform(temp, N, M);
         temp = Quantization(temp);
-        temp = ReverseQuantization(temp);
+        CalculateBits(temp);
         int[][] result = InverseDCT(temp);
 
         return result;
@@ -551,84 +538,48 @@ public class Project2Frame extends JFrame implements ActionListener {
         return result;
     }
 
-    private static double[][] ReverseQuantization(double[][] input) {
-        int[][] quantizationTable = { { 1, 1, 2, 4, 8, 16, 32, 64 },
-                { 1, 1, 2, 4, 8, 16, 32, 64 },
-                { 2, 2, 2, 4, 8, 16, 32, 64 },
-                { 4, 4, 4, 4, 8, 16, 32, 64 },
-                { 8, 8, 8, 8, 8, 16, 32, 64 },
-                { 16, 16, 16, 16, 16, 16, 32, 64 },
-                { 32, 32, 32, 32, 32, 32, 32, 64 },
-                { 64, 64, 64, 64, 64, 64, 64, 64 } };
-        double[][] result = new double[input.length][input[0].length];
-        for (int i = 0; i < input.length; i++) {
-            for (int j = 0; j < input[0].length; j++) {
-                result[i][j] = input[i][j] * quantizationTable[i][j];
-            }
-        }
-
-        return result;
-    }
-
     private static int[][] InverseDCT(double[][] input) {
         int[][] result = new int[input.length][input[0].length];
-        for (int u = 0; u <= input.length - 1; u++) {
-            for (int v = 0; v <= input[0].length - 1; v++) {
+        for (int i = 0; i <= input.length - 1; i++) {
+            for (int j = 0; j <= input[0].length - 1; j++) {
                 double temp = 0;
                 double Cu;
                 double Cv;
-                if (u == 0)
-                    Cu = (Math.sqrt(2)) / 2;
-                else
-                    Cu = 1;
-                if (v == 0)
-                    Cv = (Math.sqrt(2)) / 2;
-                else
-                    Cv = 1;
 
-                for (int i = 0; i <= input.length - 1; i++) {
-                    for (int j = 0; j <= input[0].length - 1; j++) {
+                for (int u = 0; u <= input.length - 1; u++) {
+                    for (int v = 0; v <= input[0].length - 1; v++) {
+                        if (u == 0)
+                            Cu = (Math.sqrt(2)) / 2;
+                        else
+                            Cu = 1;
+                        if (v == 0)
+                            Cv = (Math.sqrt(2)) / 2;
+                        else
+                            Cv = 1;
                         temp += ((Cu * Cv) / 4) * Math.cos(((2 * i + 1) * u * Math.PI) / 16)
                                 * Math.cos(((2 * j + 1) * v * Math.PI) / 16)
-                                * input[i][j];
+                                * input[u][v];
                     }
                 }
                 int res = (int) Math.round(temp);
 
-                result[u][v] = Math.min(Math.max(res,0),255);
+                result[i][j] = Math.min(Math.max(res,0),255);
             }
         }
         return result;
     }
 
-    private static void PrintMatrix(int[][] input) {
-        int max = 0;
-        boolean isNegative = false;
-
-        for (int i = 0; i < input.length; i++) {
-            for (int j = 0; j < input[0].length; j++) {
-                if (Math.abs(input[i][j]) > max) {
-                    max = Math.abs(input[i][j]);
+    private void CalculateBits(double[][] input){
+        for(int i = 0; i < input.length; i++){
+            for(int j = 0; j < input[0].length; j++){
+                int curr = (int)Math.round(input[i][j]);
+                if(curr == 0){
+                    bitsAfterEncoding += 1;
                 }
-                if (input[i][j] < 0) {
-                    isNegative = true;
+                else{
+                    bitsAfterEncoding += 8;
                 }
             }
         }
-        String temp = Integer.toString(max);
-        int maxWidth = temp.length();
-
-        if (isNegative)
-            maxWidth++;
-
-        String format = "%" + maxWidth + "d";
-        for (int i = 0; i < input.length; i++) {
-            System.out.print("|");
-            for (int j = 0; j < input[0].length; j++) {
-                System.out.printf(format + " ", input[i][j]);
-            }
-            System.out.println("|");
-        }
-
     }
 }
