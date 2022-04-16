@@ -364,26 +364,36 @@ public class Project2Frame extends JFrame implements ActionListener {
         try {
             BufferedImage img = ImageIO.read(file);
             rgbArray = GetRGBArray(img);
-            Color[][] colourArray = MakeColorArray(rgbArray);
+            Color[][] originalColourArray = MakeColorArray(rgbArray);
             int width = img.getWidth(), height = img.getHeight();
 
             long bitsBeforeEncoding = 24 * width * height;
 
-            for (int i = 0; i < width;) {
-                for (int j = 0; j < height;) {
-                    // int[][] redMatrix = CalculateDCT(rgbArray.R, 0, 0);
-                    // int[][] greenMatrix = CalculateDCT(rgbArray.G);
-                    // int[][] blueMatrix = CalculateDCT(rgbArray.B);
+            // int[][] test = {
+            //     { 89, 78, 76, 75, 70, 82, 81, 82, 89, 78, 76, 75, 70, 82, 81, 82 },
+            //     { 122, 95, 86, 80, 80, 76, 74, 81, 122, 95, 86, 80, 80, 76, 74, 81 },
+            //     { 184, 153, 126, 106, 85, 76, 71, 75, 184, 153, 126, 106, 85, 76, 71, 75 },
+            //     { 221, 205, 180, 146, 97, 71, 68, 67, 221, 205, 180, 146, 97, 71, 68, 67},
+            //     { 225, 222, 217, 194, 144, 95, 78, 82, 225, 222, 217, 194, 144, 95, 78, 82 },
+            //     { 228, 225, 227, 220, 193, 146, 110, 108, 228, 225, 227, 220, 193, 146, 110, 108 },
+            //     { 223, 224, 225, 224, 220, 197, 156, 120, 223, 224, 225, 224, 220, 197, 156, 120 },
+            //     { 217, 219, 219, 224, 230, 220, 197, 151, 217, 219, 219, 224, 230, 220, 197, 151 },
+            //     { 89, 78, 76, 75, 70, 82, 81, 82, 89, 78, 76, 75, 70, 82, 81, 82 },
+            //     { 122, 95, 86, 80, 80, 76, 74, 81, 122, 95, 86, 80, 80, 76, 74, 81 },
+            //     { 184, 153, 126, 106, 85, 76, 71, 75, 184, 153, 126, 106, 85, 76, 71, 75 },
+            //     { 221, 205, 180, 146, 97, 71, 68, 67, 221, 205, 180, 146, 97, 71, 68, 67},
+            //     { 225, 222, 217, 194, 144, 95, 78, 82, 225, 222, 217, 194, 144, 95, 78, 82 },
+            //     { 228, 225, 227, 220, 193, 146, 110, 108, 228, 225, 227, 220, 193, 146, 110, 108 },
+            //     { 223, 224, 225, 224, 220, 197, 156, 120, 223, 224, 225, 224, 220, 197, 156, 120 },
+            //     { 217, 219, 219, 224, 230, 220, 197, 151, 217, 219, 219, 224, 230, 220, 197, 151 }};
 
-                    j += 8;
-                }
-                i += 8;
-            }
+            rgbArray.R = DCTEncoding("red");
+            rgbArray.G = DCTEncoding("green");
+            rgbArray.B = DCTEncoding("blue");
+            Color[][] compressedColour = MakeColorArray(rgbArray);
 
-            // CalculateDCT();
-
-            originalPanel.repaint(colourArray, width, height);
-            compressedPanel.repaint(null, width, height);
+            originalPanel.repaint(originalColourArray, width, height);
+            compressedPanel.repaint(compressedColour, width, height);
             panel.add(imagePanel);
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -433,6 +443,34 @@ public class Project2Frame extends JFrame implements ActionListener {
         return output;
     }
 
+    private int[][] DCTEncoding(String colour){
+        int[][] colourArr = new int[rgbArray.R.length][rgbArray.R[0].length];
+        if(colour.equals("red")){
+            colourArr = rgbArray.R; 
+        }
+        else if (colour.equals("green")){
+            colourArr = rgbArray.G;
+        }
+        else if (colour.equals("blue")){
+            colourArr = rgbArray.B;
+        }
+        for (int i = 0; i < colourArr.length-8; i += 8) {
+            for (int j = 0; j < colourArr[0].length-8; j += 8) {
+                int[][] temp = new int[8][8];
+                for(int u = 0; u < 8; u++){
+                    temp[u] = Arrays.copyOfRange(colourArr[i+u], j, j+8);
+                }
+                temp = CalculateDCT(temp);
+                for(int v = 0; v < 8; v++){
+                    for(int w = 0; w < 8; w++){
+                        colourArr[i+v][j+w] = temp[v][w];
+                    }
+                }
+            }
+        }
+        return colourArr;
+    }
+
     private int[][] CalculateDCT(int[][] input) {
         int M = input.length;
         int N = input[0].length;
@@ -441,7 +479,6 @@ public class Project2Frame extends JFrame implements ActionListener {
         temp = Quantization(temp);
         temp = ReverseQuantization(temp);
         int[][] result = InverseDCT(temp);
-        PrintMatrix(result);
 
         return result;
     }
@@ -558,7 +595,7 @@ public class Project2Frame extends JFrame implements ActionListener {
                 }
                 int res = (int) Math.round(temp);
 
-                result[u][v] = res;
+                result[u][v] = Math.min(Math.max(res,0),255);
             }
         }
         return result;
