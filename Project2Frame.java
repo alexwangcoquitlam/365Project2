@@ -296,12 +296,6 @@ public class Project2Frame extends JFrame implements ActionListener {
 
         System.out.println("Finishing Huffman encoding...");
         System.out.println("Creating Huffman code, this can take a while...");
-        String huffmanCode = "";
-        for (int i = 0; i < input.length; i++) {
-            String code = huffmanDictionary.get(input[i]);
-            huffmanCode += code;
-            huffmanCode += " ";
-        }
         try {
             System.out.println("Writing to file...");
             File encodedHuffman = new File("encodedHuffman.txt");
@@ -312,7 +306,10 @@ public class Project2Frame extends JFrame implements ActionListener {
                 encodedHuffman.createNewFile();
             }
             FileWriter writer = new FileWriter(encodedHuffman.getName());
-            writer.write(huffmanCode);
+            for(int i = 0; i < input.length; i++){
+                String code = huffmanDictionary.get(input[i]);
+                writer.write(code + " ");
+            }
             writer.close();
         } catch (Exception ex) {
             fileLabel.setText("Error reading .wav");
